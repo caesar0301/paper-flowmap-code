@@ -1,0 +1,8 @@
+python-igraph
+smopy
+networkx
+numpy
+pandas
+matplotlib
+pillow
+pyshp
