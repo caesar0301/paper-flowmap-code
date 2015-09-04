@@ -24,3 +24,7 @@ figures/
 
 # Python
 *.pyc
+
+.idea/
+*.iml
+*.ipynb
