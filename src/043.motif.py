@@ -3,10 +3,13 @@
 # Extract and analyze the movement motif
 # By Xiaming
 import sys
+import os
 
 import networkx as nx
 import numpy as np
 from pandas import DataFrame
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch, Circle
 
 from xoxo.utils import CellMapDB, movement_reader
 
@@ -64,7 +67,6 @@ class Motif(object):
             motifs = self.all[nn].values()
             motifs = sorted(motifs, key=lambda x: len(x), reverse=True)
             for i in range(0, len(motifs)):
-                ## TODO: to inspect the topology of motif
                 result = result.append(DataFrame(np.array([[nn, i, len(motifs[i])]]), columns=columns), ignore_index=True)
         return result
 
@@ -82,10 +84,35 @@ def seq2graph(seq, directed=True):
         G = nx.Graph()
 
     G.add_nodes_from(seq)
-    edges = [i for i in zip(seq[0:N-2], seq[1:N-1]) if i[0] != i[1]]
+    edges = [i for i in zip(seq[0:N-1], seq[1:N]) if i[0] != i[1]]
     G.add_edges_from(edges)
 
     return G
+
+
+def draw_network(G, pos, ax):
+    for n in G:
+        c = Circle(pos[n], radius=0.05, alpha=0.5)
+        ax.add_patch(c)
+        G.node[n]['patch'] = c
+    seen={}
+    for (u,v,d) in G.edges(data=True):
+        n1 = G.node[u]['patch']
+        n2 = G.node[v]['patch']
+        rad = 0.1
+        if (u,v) in seen:
+            rad = seen.get((u,v))
+            rad = (rad + np.sign(rad) * 0.1) * -1
+        alpha = 0.5; color = 'k'
+        e = FancyArrowPatch(n1.center, n2.center,
+                            patchA=n1, patchB=n2,
+                            arrowstyle='-|>',
+                            connectionstyle='arc3,rad=%s' % rad,
+                            mutation_scale=10.0,
+                            lw=2, alpha=alpha, color=color)
+        seen[(u, v)] = rad
+        ax.add_patch(e)
+    return e
 
 
 ##---------- Module Test -----------
@@ -110,17 +137,47 @@ if __name__ == '__main__':
     CellMapDB(basemap)
     motifrepo = Motif()
 
+    print("Extracting motifs ...")
     for person in movement_reader(movement):
-        # if IdCounter.count(person.user_id) > 100:
-        #     break
-        # print('\n>>' + str(person))
+        if IdCounter.count(person.user_id) > 100:
+            break
+
+        # if len(set(person.locations)) == 4:
+        #     print('>>' + str(person))
 
         user_info = UserInfo(dow = person.dtstart.isoweekday(), uid = person.user_id)
         user_graph = seq2graph(person.locations, True)
         motifrepo.add_graph(user_graph, user_info)
 
     pickle.dump(motifrepo, open('motifs.pkl', 'wb'))
-    motifrepo = pickle.load(open('motifs.pkl', 'rb'))
     motifrepo.stat().to_csv('motifs.csv', index=False)
 
+    print("Plotting motifs ...")
+    for n in motifrepo.all.keys():
+        if n < 3 or n > 20:
+            continue
+        motifs = motifrepo.all[n].keys()
+        total = np.sum([len(v) for v in motifrepo.all[n].values()])
+        percs = [(motif, 1.0*len(info)/total) for (motif, info) in motifrepo.all[n].items()]
+        percs = sorted(percs, key=lambda x: x[1], reverse=True)
+        percs = [i for i in percs if i[1] >= 0.015]
 
+        ncol = 5
+        nrow = np.ceil(1.0 * len(percs) / ncol)
+
+        plt.figure(figsize=(15, 15))
+        for i in range(len(percs)):
+            motif = percs[i][0]
+            perc = percs[i][1]
+            plt.subplot(nrow, ncol, i+1)
+            ax=plt.gca()
+            pos=nx.spring_layout(motif)
+            draw_network(motif, pos, ax)
+            ax.autoscale()
+            plt.axis('equal')
+            plt.axis('off')
+            plt.title('%.1f%%' % (perc * 100))
+
+        if not os.path.exists('motifs'):
+            os.mkdir('motifs')
+        plt.savefig('motifs/motif-%d.pdf' % n)
