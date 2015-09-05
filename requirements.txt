@@ -1,8 +1,6 @@
-python-igraph
-smopy
-networkx
-numpy
-pandas
-matplotlib
-pillow
-pyshp
+python-igrap==0.7.1
+networkx==1.10
+numpy==1.9.2
+pandas==0.16.2
+matplotlib==1.4.3
+pyshp==1.2.3

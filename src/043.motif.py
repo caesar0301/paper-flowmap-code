@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8
-# Extract and analyze the movement motif
-# By Xiaming
-import sys
+# Extract and analyze the movement motif.
 import os
 
 import networkx as nx
 import numpy as np
 from pandas import DataFrame
-import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch, Circle
 
-from xoxo.utils import CellMapDB, movement_reader
+from networkx.algorithms import isomorphism
+
+__author__ = 'Xiaming Chen'
+__email__ = 'chen@xiaming.me'
 
 
 class Motif(object):
@@ -53,15 +52,19 @@ class Motif(object):
             else: # its a new motif
                 motifs2[nedge].update({g: 1})
 
-    def is_isomorphic(self, g1, g2):
+    def is_isomorphic(self, g1, g2, approximate=False):
         """Check if two graphs are isomorphic.
         To accelerate the process, we use an approximate algorithm,
         whose False value means definitely not isomorphic while True
         value does not guarantee isomorphic for 100%.
         """
-        if g1.number_of_edges() != g2.number_of_edges():
+        if approximate:
+            return isomorphism.faster_could_be_isomorphic(g1, g2)
+        else:
+            if isomorphism.faster_could_be_isomorphic(g1, g2):
+                if isomorphism.is_isomorphic(g1, g2):
+                    return True
             return False
-        return nx.algorithms.isomorphism.faster_could_be_isomorphic(g1, g2)
 
     def motif_iter(self, nnode):
         """Iterator over all motifs with specific number of nodes."""
@@ -95,51 +98,11 @@ class Motif(object):
         return result
 
 
-def seq2graph(seq, directed=True):
-    """Create a (weighted) directed graph from an odered
-    sequence of items.
-    """
-    seq = [i for i in seq]
-    N = len(seq)
-
-    if directed:
-        G = nx.DiGraph()
-    else:
-        G = nx.Graph()
-
-    G.add_nodes_from(seq)
-    edges = [i for i in zip(seq[0:N-1], seq[1:N]) if i[0] != i[1]]
-    G.add_edges_from(edges)
-
-    return G
-
-
-def draw_network(G, pos, ax):
-    for n in G:
-        c = Circle(pos[n], radius=0.05, alpha=0.5)
-        ax.add_patch(c)
-        G.node[n]['patch'] = c
-    seen={}
-    for (u,v,d) in G.edges(data=True):
-        n1 = G.node[u]['patch']
-        n2 = G.node[v]['patch']
-        rad = 0.1
-        if (u,v) in seen:
-            rad = seen.get((u,v))
-            rad = (rad + np.sign(rad) * 0.1) * -1
-        alpha = 0.5; color = 'k'
-        e = FancyArrowPatch(n1.center, n2.center,
-                            patchA=n1, patchB=n2,
-                            arrowstyle='-|>',
-                            connectionstyle='arc3,rad=%s' % rad,
-                            mutation_scale=10.0,
-                            lw=2, alpha=alpha, color=color)
-        seen[(u, v)] = rad
-        ax.add_patch(e)
-    return e
-
-
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+
+    from xoxo.utils import CellMapDB, movement_reader, seq2graph, draw_network
+    from xoxo.settings import BSMAP, MOVEMENT_HIST, MAX_USER_NUM
 
     class IdCounter(object):
         ids = set()
@@ -148,27 +111,24 @@ if __name__ == '__main__':
             IdCounter.ids.add(new_id)
             return len(IdCounter.ids)
 
-    if len(sys.argv) < 3:
-        print("Usage: motifs.py <number> <basemap> <movement>")
-        sys.exit(-1)
+    counter = MAX_USER_NUM
+    basemap = BSMAP
+    movement = MOVEMENT_HIST
 
-    counter = int(sys.argv[1])
-    basemap = sys.argv[2]
-    movement = sys.argv[3]
-
+    # Initialize base station map
     CellMapDB(basemap)
-    motifrepo = Motif()
 
     print("Extracting motifs ...")
+    motifrepo = Motif()
     for person in movement_reader(movement):
-        # for debugging
+
         if IdCounter.count(person.user_id) > counter:
             break
 
         user_graph = seq2graph(person.locations, True)
         motifrepo.add_graph(user_graph)
 
-    motifrepo.stat().to_csv('motifs.csv', index=False)
+    motifrepo.stat().to_csv('motifs_stat.csv', index=False)
 
     print("Plotting motifs ...")
     for n in motifrepo.all.keys():

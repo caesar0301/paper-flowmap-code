@@ -2,7 +2,11 @@
 # Read the movement history and mobile network topology
 # By mxc
 import sys
-from datetime import datetime, date
+from datetime import datetime
+
+import numpy as np
+import networkx as nx
+from matplotlib.patches import FancyArrowPatch, Circle
 
 class CellMapDB(object):
     """ A singleton to store mobile network topology
@@ -170,3 +174,62 @@ def in_area(p, lb, rt):
     if p[0] >= lb[0] and p[0] <= rt[0] and p[1] >= lb[1] and p[1] <= rt[1]:
         return True
     return False
+
+
+def seq2graph(seq, directed=True):
+    """Create a (weighted) directed graph from an odered
+    sequence of items.
+    """
+    seq = [i for i in seq]
+    N = len(seq)
+
+    if directed:
+        G = nx.DiGraph()
+    else:
+        G = nx.Graph()
+
+    G.add_nodes_from(seq)
+    edges = [i for i in zip(seq[0:N-1], seq[1:N]) if i[0] != i[1]]
+    G.add_edges_from(edges)
+
+    return G
+
+
+def draw_network(G, pos, ax):
+    """ Draw network with curved edges.
+
+    Example
+    -------
+
+        plt.figure(figsize=(10, 10))
+        ax=plt.gca()
+        pos=nx.spring_layout(G)
+        draw_network(G, pos, ax)
+        ax.autoscale()
+        plt.axis('equal')
+        plt.axis('off')
+        plt.title('Curved network')
+
+    """
+    for n in G:
+        c = Circle(pos[n], radius=0.05, alpha=0.5)
+        ax.add_patch(c)
+        G.node[n]['patch'] = c
+    seen={}
+    for (u,v,d) in G.edges(data=True):
+        n1 = G.node[u]['patch']
+        n2 = G.node[v]['patch']
+        rad = 0.1
+        if (u,v) in seen:
+            rad = seen.get((u,v))
+            rad = (rad + np.sign(rad) * 0.1) * -1
+        alpha = 0.5; color = 'k'
+        e = FancyArrowPatch(n1.center, n2.center,
+                            patchA=n1, patchB=n2,
+                            arrowstyle='-|>',
+                            connectionstyle='arc3,rad=%s' % rad,
+                            mutation_scale=10.0,
+                            lw=2, alpha=alpha, color=color)
+        seen[(u, v)] = rad
+        ax.add_patch(e)
+    return e
