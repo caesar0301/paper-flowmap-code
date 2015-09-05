@@ -164,6 +164,9 @@ def is_valid_location(location_id):
 
 
 def in_area(p, lb, rt):
+    """Check if a point (lon, lat) is in an area denoted by
+    the left-below and right-top points.
+    """
     if p[0] >= lb[0] and p[0] <= rt[0] and p[1] >= lb[1] and p[1] <= rt[1]:
         return True
     return False
