@@ -3,12 +3,12 @@ import shapefile
 import numpy as np
 import json
 
-def shape2graph(shpfile, distance=True):
+def shape2graph(shpfile, edge_weighted_by_distance=True):
     """Converts a ERIS shapefile into an undirected graph in NetworkX.
     """
     g = nx.read_shp(shpfile)
     mg = max(nx.connected_component_subgraphs(g.to_undirected()), key=len)
-    if distance: # add distance progperty to edges
+    if edge_weighted_by_distance: # add distance progperty to edges
         for n0, n1 in mg.edges_iter():
             # get an array of point coordinates along the road
             path = get_path_segment(mg, n0, n1)

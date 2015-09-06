@@ -115,12 +115,9 @@ if __name__ == '__main__':
     basemap = BSMAP
     movement = MOVEMENT_HIST
 
-    # Initialize base station map
-    CellMapDB(basemap)
-
     print("Extracting motifs ...")
     motifrepo = Motif()
-    for person in movement_reader(movement):
+    for person in movement_reader(movement, CellMapDB(basemap)):
 
         if IdCounter.count(person.user_id) > counter:
             break
