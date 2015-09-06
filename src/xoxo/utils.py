@@ -83,28 +83,56 @@ def in_area(p, lb, rt):
 
 
 class PersonMoveDay(object):
+    """ An object to represent the daily mobility of individuals.
 
-    def __init__(self, user_id, dtstart, timestamps, locations, coordinates):
+    The dewelling time at each location is controlled by
+    :param dwelling_split_ratio: (default 0.8). With two timestamps at
+    successive locations, the :param dwelling_split_ratio: * elapsed_duration
+    contributes to the first location and the left to the second.
+    """
+
+    def __init__(self, user_id, dtstart, timestamps, locations, coordinates, dwelling_split_ratio=0.8):
         assert isinstance(dtstart, datetime)
-        assert isinstance(timestamps, list)
-        assert isinstance(locations, list)
+        assert len(timestamps) == len(locations) == len(coordinates)
 
         self.user_id = user_id
         self.dtstart = dtstart
+        self.dwelling = []
+        self.accdwelling = {}
 
-        # Remove duplicate stays
+        # Remove duplicates in successive records
         nodup = []
-        last = None
-        for i in range(0, len(locations)):
-            if locations[i] != last:
+        last_location = None
+        last_timestamp = None
+        for i in range(len(locations)):
+            if locations[i] != last_location:
                 nodup.append(i)
-            last = locations[i]
+
+            if last_timestamp is None:
+                last_timestamp = timestamps[i]
+                self.dwelling.append(0)
+            else:
+                delta = timestamps[i] - last_timestamp
+                self.dwelling[-1] += (delta * dwelling_split_ratio)
+                if locations[i] != last_location:
+                    self.dwelling.append(delta * (1 - dwelling_split_ratio))
+                else:
+                    self.dwelling[-1] += (delta * 0.2)
+
+            last_location = locations[i]
+            last_timestamp = timestamps[i]
 
         self.timestamps = [timestamps[i] for i in nodup]
         self.locations = [locations[i] for i in nodup]
         self.circles = self._mine_circles(self.locations)
         self.coordinates = [coordinates[i] for i in nodup]
-        self.dwelling = None
+
+        # Accumulative dwelling times
+        for i in range(len(self.coordinates)):
+            coord = self.coordinates[i]
+            if coord not in self.accdwelling:
+                self.accdwelling[coord] = 0
+            self.accdwelling[coord] += self.dwelling[i]
 
     def __str__(self):
         return 'User %d: %s %d %s' % (
@@ -147,9 +175,11 @@ class PersonMoveDay(object):
         """ Return a graph representation of human mobility, one which
         is weighted by traveling distance at edge and dwelling time at node.
 
-        @PerfStat (PersonNum,Calls,AccTime):
-            100,1519,54.191s
+        **PerfStat** (PersonNum,Calls,AccTime):
+          - 100,1519,54.191s
         """
+        assert isinstance(road_network, RoadNetwork)
+
         graph = seq2graph(self.coordinates, directed)
 
         if edge_weighted_by_distance:
@@ -159,7 +189,7 @@ class PersonMoveDay(object):
 
         if node_weighted_by_dwelling_time:
             for node in graph.nodes_iter():
-                graph.node[node]['dwelling_time'] = (node in self.coordinates)
+                graph.node[node]['dwelling'] = self.accdwelling.get(node)
 
         return graph
 
@@ -232,8 +262,7 @@ def seq2graph(seq, directed=True):
 def draw_network(G, pos, ax):
     """ Draw network with curved edges.
 
-    Example
-    -------
+    :Example:
 
         plt.figure(figsize=(10, 10))
         ax=plt.gca()
@@ -363,3 +392,6 @@ class RoadNetwork(object):
         self._update_cache(lonlat1, lonlat2, distance)
         return distance
 
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

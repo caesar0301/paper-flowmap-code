@@ -8,7 +8,7 @@ BSMAP = 'data/hcl_bm.dat'
 
 # Max user number
 if DEBUGGING:
-    MAX_USER_NUM = 100
+    MAX_USER_NUM = 1
 else:
     MAX_USER_NUM = 1000000000
 
