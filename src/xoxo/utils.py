@@ -260,19 +260,18 @@ def seq2graph(seq, directed=True):
 
 
 def draw_network(G, pos, ax):
-    """ Draw network with curved edges.
+    """Draw network with curved edges.
 
-    :Example:
-
-        plt.figure(figsize=(10, 10))
-        ax=plt.gca()
-        pos=nx.spring_layout(G)
-        draw_network(G, pos, ax)
-        ax.autoscale()
-        plt.axis('equal')
-        plt.axis('off')
-        plt.title('Curved network')
-
+    Examples
+    --------
+    >>> plt.figure(figsize=(10, 10))
+    >>> ax=plt.gca()
+    >>> pos=nx.spring_layout(G)
+    >>> draw_network(G, pos, ax)
+    >>> ax.autoscale()
+    >>> plt.axis('equal')
+    >>> plt.axis('off')
+    >>> plt.title('Curved network')
     """
     for n in G:
         c = Circle(pos[n], radius=0.05, alpha=0.5)
@@ -386,9 +385,10 @@ class RoadNetwork(object):
         hit = self._hit_cache(lonlat1, lonlat2)
         if hit is not None:
             return hit
-        sp = self.shortest_path(lonlat1, lonlat2, weight)
-        distances = [self.G.edge[sp[i]][sp[i+1]][weight] for i in range(len(sp)-1)]
-        distance = np.sum(distances)
+        nodes = np.array(self.G.nodes())
+        p1 = self.nearest_node_to(lonlat1)
+        p2 = self.nearest_node_to(lonlat2)
+        distance = nx.shortest_path_length(self.G, tuple(nodes[p1]), tuple(nodes[p2]), weight)
         self._update_cache(lonlat1, lonlat2, distance)
         return distance
 

@@ -70,34 +70,56 @@ class Motif(object):
                     return True
             return False
 
-    def motif_iter(self, nnode):
-        """Iterator over all motifs with specific number of nodes."""
-        motifs = self.all[nnode]
-        for nedge in motifs.keys():
-            motifs2 = motifs[nedge]
-            for motif in motifs2.keys():
-                yield (motif, motifs2[motif])
+    def motif_iter(self, nnode=None):
+        """Iterator over all motifs with specific number of nodes.
 
-    def all_motifs(self, nnode, order_by_size=False):
+        Parameters
+        ----------
+        nnode: integer or list, optional
+            If it is an integer, return motifs with the number of nodes.
+            If it is a list of integer, return all motifs whose number falls
+            into the list.
+            If it is None, return all motifs without constraints.
+        """
+        if nnode is None:
+            nnodes = self.all.keys()
+        elif isinstance(nnode, int):
+            nnodes = [nnode]
+        elif isinstance(nnode, list):
+            nnodes = nnode
+
+        for nn in nnodes:
+            motifs = self.all[nn]
+            for ne in motifs.keys():
+                motifs2 = motifs[ne]
+                for motif in motifs2.keys():
+                    yield (motif, motifs2[motif])
+
+    def all_motifs(self, nnode=None, order_by_size=False, reverse=False):
+        """Return a list of tuple (motif, count) with specifc number of nodes.
+        """
         motifs = [i for i in self.motif_iter(nnode)]
         if order_by_size:
-            motifs = sorted(motifs, key=lambda x: x[1], reverse=True)
+            motifs = sorted(motifs, key=lambda x: x[1], reverse=reverse)
         return motifs
 
-    def number_of_motifs(self, nnode):
-        """Return the number of motifs with specifc number of nodes."""
-        motifs = self.all[nnode]
-        counter = [motifs[nedge][motif] for nedge in motifs for motif in motifs[nedge]]
+    def number_of_motifs(self, nnode=None):
+        """Return the number of motifs with specifc number of nodes.
+        """
+        counter = [cnt for motif, cnt in self.motif_iter(nnode)]
         return np.sum(counter)
 
     def stat(self):
-        """Generate the stat of deteced motifs."""
+        """Generate the stat of deteced motifs.
+        """
         columns=['nnode', 'motifidx', 'count']
         result = DataFrame(columns=columns)
         for nn in self.all:
             motifs = self.all_motifs(nn, True)
             for i in range(len(motifs)):
-                result = result.append(DataFrame(np.array([[nn, i, motifs[i][1]]]), columns=columns), ignore_index=True)
+                result = result.append(
+                    DataFrame(np.array([[nn, i, motifs[i][1]]]), columns=columns),
+                    ignore_index=True)
 
         return result
 
@@ -154,12 +176,38 @@ if __name__ == '__main__':
     motifrepo.stat().to_csv('motifs_stat.csv', index=False)
 
     print("Plotting motifs ...")
-    for n in motifrepo.all.keys():
-        if n < 3 or n > 10:
-            continue
-        motifs = motifrepo.all[n].keys()
-        total = motifrepo.number_of_motifs(n)
-        percs = [(motif, 1.0*count/total) for (motif, count) in motifrepo.motif_iter(n)]
+    motif_filter = range(3, 11)
+
+    # Global stat
+    all_motifs = motifrepo.all_motifs(motif_filter, True, True)
+    totmotif = motifrepo.number_of_motifs(motif_filter)
+    percs = [(motif, 1.0*count/totmotif) for (motif, count) in all_motifs]
+    percs = [i for i in percs if i[1] >= 0.003]
+
+    ncol = 5
+    nrow = np.ceil(1.0 * len(percs) / ncol)
+
+    plt.figure(figsize=(12, 20))
+    for i in range(len(percs)):
+        motif = percs[i][0]
+        perc = percs[i][1]
+        plt.subplot(nrow, ncol, i+1)
+        ax=plt.gca()
+        pos=nx.spring_layout(motif)
+        draw_network(motif, pos, ax)
+        ax.autoscale()
+        plt.axis('equal')
+        plt.axis('off')
+        plt.title('%.1f%%, nn=%d' % (perc * 100, motif.number_of_nodes()))
+
+    if not os.path.exists('motifs'):
+        os.mkdir('motifs')
+    plt.savefig('motifs/motif-all.pdf')
+
+    # Stat by motif length
+    for nn in motif_filter:
+        total = motifrepo.number_of_motifs(nn)
+        percs = [(motif, 1.0*count/total) for (motif, count) in motifrepo.motif_iter(nn)]
         percs = sorted(percs, key=lambda x: x[1], reverse=True)
         percs = [i for i in percs if i[1] >= 0.015]
 
@@ -167,7 +215,7 @@ if __name__ == '__main__':
         nrow = np.ceil(1.0 * len(percs) / ncol)
 
         # visualizing motifs
-        plt.figure(figsize=(15, 15))
+        plt.figure(figsize=(12, 12))
         for i in range(len(percs)):
             motif = percs[i][0]
             perc = percs[i][1]
@@ -182,4 +230,5 @@ if __name__ == '__main__':
 
         if not os.path.exists('motifs'):
             os.mkdir('motifs')
-        plt.savefig('motifs/motif-%d.pdf' % n)
+        plt.savefig('motifs/motif-%d.pdf' % nn)
+
