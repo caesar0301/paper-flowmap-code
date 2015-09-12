@@ -1,0 +1,205 @@
+from datetime import datetime
+
+from roadnetwork import RoadNetwork, greate_circle_distance, seq2graph
+from basestationmap import BaseStationMap
+from settings import HZ_LB, HZ_RT
+
+
+def drange(ts):
+    """ Determine the range of a valid day now with
+    (03:00 ~ 03:00 next day)
+    """
+    dt = datetime.fromtimestamp(ts)
+    if dt.hour < 3:
+        sds = datetime(dt.year, dt.month, dt.day-1, 3)
+    else:
+        sds = datetime(dt.year, dt.month, dt.day, 3)
+    eds = sds.replace(day=sds.day+1)
+    return (sds, eds)
+
+
+def in_area(p, lb, rt):
+    """Check if a point (lon, lat) is in an area denoted by
+    the left-below and right-top points.
+    """
+    if p[0] >= lb[0] and p[0] <= rt[0] and p[1] >= lb[1] and p[1] <= rt[1]:
+        return True
+    return False
+
+
+def movement_reader(fname, bsmap):
+    """ An iterator to read personal daily data.
+    """
+    assert isinstance(bsmap, BaseStationMap)
+
+    buf_ts = []
+    buf_lc = []
+    buf_cr = []
+    last_uid = None
+    last_day_start = None
+
+    def check_time_alignment():
+        if buf_ts[-1] != buf_ts[0] + 86400:
+            buf_ts.append(buf_ts[0] + 86400)
+            buf_lc.append(buf_lc[0])
+            buf_cr.append(buf_cr[0])
+
+    for line in open(fname, 'rb'):
+        line = line.strip('\r\n ')
+
+        if line.startswith('#'): continue
+
+        uid, ts, loc = line.split(',')[0:3]
+        uid = int(uid)
+        ts = int(float(ts))
+        loc = int(loc)
+        day_start, day_end = drange(ts)
+        coord = bsmap.get_coordinates(loc)
+
+        if not in_area(coord, HZ_LB, HZ_RT):
+            continue
+
+        if last_uid is None or uid == last_uid and day_start == last_day_start:
+            buf_ts.append(ts)
+            buf_lc.append(loc)
+            buf_cr.append(coord)
+        else:
+            check_time_alignment()
+            yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
+
+            buf_ts = [ts]
+            buf_lc = [loc]
+            buf_cr = [coord]
+
+        last_uid = uid
+        last_day_start = day_start
+
+    check_time_alignment()
+    yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
+
+
+class PersonMoveDay(object):
+    """ An object to represent the daily mobility of individuals.
+
+    The dewelling time at each location is controlled by
+    :param dwelling_split_ratio: (default 0.8). With two timestamps at
+    successive locations, the :param dwelling_split_ratio: * elapsed_duration
+    contributes to the first location and the left to the second.
+    """
+
+    def __init__(self, user_id, dtstart, timestamps, locations, coordinates, dwelling_split_ratio=0.8):
+        assert isinstance(dtstart, datetime)
+        assert len(timestamps) == len(locations) == len(coordinates)
+
+        self.user_id = user_id
+        self.dtstart = dtstart
+        self.dwelling = []
+        self.accdwelling = {}
+
+        # Remove duplicate records
+        nodup = []
+        last_location = None
+        for i in range(len(locations)):
+            if locations[i] != last_location:
+                nodup.append(i)
+            last_location = locations[i]
+
+        self.timestamps = [timestamps[i] for i in nodup]
+        self.locations = [locations[i] for i in nodup]
+        self.circles = self._mine_circles(self.locations)
+        self.coordinates = [coordinates[i] for i in nodup]
+
+        def transtime(a, b):
+            dist = greate_circle_distance(a[0], a[1], b[0], b[1])
+            if dist <= 5: # km
+                speed = 5
+            elif dist <= 15:
+                speed = 20
+            else:
+                speed = 30
+            return 1.0 * dist / speed * 3600
+
+        # Calculate raw dwelling time
+        last_timestamp = None
+        last_location = None
+        for i in range(len(locations)):
+            if last_timestamp is None:
+                last_timestamp = timestamps[i]
+                self.dwelling.append(0)
+            else:
+                # Remove transmission slot
+                delta = timestamps[i] - last_timestamp
+                # Adjust dwelling time
+                self.dwelling[-1] += int(delta * dwelling_split_ratio)
+                split_left = int(delta * (1 - dwelling_split_ratio))
+                if locations[i] != last_location:
+                    self.dwelling.append(split_left)
+                else:
+                    self.dwelling[-1] += split_left
+            last_location = locations[i]
+            last_timestamp = timestamps[i]
+
+        # Accumulative dwelling times
+        for i in range(len(self.coordinates)):
+            coord = self.coordinates[i]
+            if coord not in self.accdwelling:
+                self.accdwelling[coord] = 0
+            self.accdwelling[coord] += self.dwelling[i]
+
+    def __str__(self):
+        return 'User %d: %s %d %s' % (
+            self.user_id,
+            self.dtstart.strftime('%Y%m%d'),
+            len(self.circles),
+            self.locations
+        )
+
+    def _mine_circles(self, locs):
+        """ Extract movement circles from a location sequence
+        """
+        i = 0; n = len(locs)
+        circles = []
+        while i < n:
+            found = False
+            for j  in range(i+1, n):
+                if locs[j] == locs[i]:
+                    found = True
+                    circles.append((i, j))
+                    deeper = self._mine_circles(locs[i+1:j])
+                    deeper = [(t[0]+i+1, t[1]+i+1) for t in deeper]
+                    circles.extend(deeper)
+                    break
+            i = j if found else (i + 1)
+        return circles
+
+    def get_distances_from(self, road_network):
+        """ Get geographical distances for each movement."""
+        assert isinstance(road_network, RoadNetwork)
+        N = len(self.coordinates)
+        distances = []
+        for p1, p2 in zip(self.coordinates[0:N-1], self.coordinates[1, N]):
+            distances.append(road_network.shortest_path_distance(p1, p2))
+        return distances
+
+    def convert2graph(self, road_network, directed=True,
+                      edge_weighted_by_distance=True,
+                      node_weighted_by_dwelling_time=True):
+        """ Return a graph representation of human mobility, one which
+        is weighted by traveling distance for edge and dwelling time for node.
+
+        **PerfStat** (PersonNum,Calls,AccTime): 100,1519,54.191s
+        """
+        assert isinstance(road_network, RoadNetwork)
+
+        graph = seq2graph(self.coordinates, directed)
+
+        if edge_weighted_by_distance:
+            for edge in graph.edges_iter():
+                graph.edge[edge[0]][edge[1]]['distance'] = \
+                    road_network.shortest_path_distance(edge[0], edge[1])
+
+        if node_weighted_by_dwelling_time:
+            for node in graph.nodes_iter():
+                graph.node[node]['dwelling'] = self.accdwelling.get(node)
+
+        return graph
