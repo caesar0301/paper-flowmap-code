@@ -4,3 +4,4 @@ numpy==1.9.2
 pandas==0.16.2
 matplotlib==1.4.3
 pyshp==1.2.3
+typedecorator==0.0.4
