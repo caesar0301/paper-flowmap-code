@@ -149,8 +149,9 @@ class RoadNetwork(object):
             return hit
         nodes = np.array(self.graph.nodes())
         nn = np.argmin(np.sum((nodes[:,:] - lonlat)**2, axis=1))
-        self._update_cache_nn(lonlat, nn)
-        return self.graph.nodes()[nn]
+        coord = self.graph.nodes()[nn]
+        self._update_cache_nn(lonlat, coord)
+        return coord
 
     def shortest_path(self, lonlat1, lonlat2, weight='distance'):
         """Find the shortest path for a pair of points.
