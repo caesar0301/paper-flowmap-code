@@ -28,6 +28,8 @@ from matplotlib.patches import FancyArrowPatch, Circle
 def seq2graph(seq, directed=True):
     """Create a (weighted) directed graph from an odered
     sequence of items.
+
+    An alternative to nx.Graph.add_path
     """
     seq = [i for i in seq]
     N = len(seq)

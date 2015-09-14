@@ -1,4 +1,4 @@
-DEBUGGING = True
+DEBUGGING = False
 
 # Movement history
 MOVEMENT_HIST = 'data/hcl.dat'
