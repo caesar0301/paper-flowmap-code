@@ -1,30 +1,14 @@
 from datetime import datetime
 
-from roadnetwork import RoadNetwork, greate_circle_distance, seq2graph
+from typedecorator import params
+
+from roadnetwork import RoadNetwork
 from basestationmap import BaseStationMap
 from settings import HZ_LB, HZ_RT
+from utils import greate_circle_distance, seq2graph, drange, in_area
 
 
-def drange(ts):
-    """ Determine the range of a valid day now with
-    (03:00 ~ 03:00 next day)
-    """
-    dt = datetime.fromtimestamp(ts)
-    if dt.hour < 3:
-        sds = datetime(dt.year, dt.month, dt.day-1, 3)
-    else:
-        sds = datetime(dt.year, dt.month, dt.day, 3)
-    eds = sds.replace(day=sds.day+1)
-    return (sds, eds)
-
-
-def in_area(p, lb, rt):
-    """Check if a point (lon, lat) is in an area denoted by
-    the left-below and right-top points.
-    """
-    if p[0] >= lb[0] and p[0] <= rt[0] and p[1] >= lb[1] and p[1] <= rt[1]:
-        return True
-    return False
+__all__ = ['movement_reader', 'PersonMoveDay']
 
 
 def movement_reader(fname, bsmap):
@@ -91,7 +75,7 @@ class PersonMoveDay(object):
         assert isinstance(dtstart, datetime)
         assert len(timestamps) == len(locations) == len(coordinates)
 
-        self.user_id = user_id
+        self.id = user_id
         self.dtstart = dtstart
         self.dwelling = []
         self.accdwelling = {}
@@ -148,12 +132,13 @@ class PersonMoveDay(object):
 
     def __str__(self):
         return 'User %d: %s %d %s' % (
-            self.user_id,
+            self.id,
             self.dtstart.strftime('%Y%m%d'),
             len(self.circles),
             self.locations
         )
 
+    @params(self=object, locs=[object])
     def _mine_circles(self, locs):
         """ Extract movement circles from a location sequence
         """
@@ -172,25 +157,25 @@ class PersonMoveDay(object):
             i = j if found else (i + 1)
         return circles
 
+    @params(self=object, road_network=RoadNetwork)
     def get_distances_from(self, road_network):
         """ Get geographical distances for each movement."""
-        assert isinstance(road_network, RoadNetwork)
         N = len(self.coordinates)
         distances = []
         for p1, p2 in zip(self.coordinates[0:N-1], self.coordinates[1, N]):
             distances.append(road_network.shortest_path_distance(p1, p2))
         return distances
 
+    @params(self=object, road_network=RoadNetwork, directed=bool,
+            edge_weighted_by_distance=bool, node_weighted_by_dwelling=bool)
     def convert2graph(self, road_network, directed=True,
                       edge_weighted_by_distance=True,
-                      node_weighted_by_dwelling_time=True):
+                      node_weighted_by_dwelling=True):
         """ Return a graph representation of human mobility, one which
         is weighted by traveling distance for edge and dwelling time for node.
 
         **PerfStat** (PersonNum,Calls,AccTime): 100,1519,54.191s
         """
-        assert isinstance(road_network, RoadNetwork)
-
         graph = seq2graph(self.coordinates, directed)
 
         if edge_weighted_by_distance:
@@ -198,7 +183,7 @@ class PersonMoveDay(object):
                 graph.edge[edge[0]][edge[1]]['distance'] = \
                     road_network.shortest_path_distance(edge[0], edge[1])
 
-        if node_weighted_by_dwelling_time:
+        if node_weighted_by_dwelling:
             for node in graph.nodes_iter():
                 graph.node[node]['dwelling'] = self.accdwelling.get(node)
 

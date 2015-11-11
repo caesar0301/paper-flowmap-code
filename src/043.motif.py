@@ -10,7 +10,9 @@ from pandas import DataFrame
 from networkx.algorithms import isomorphism
 from matplotlib.patches import FancyArrowPatch, Circle
 
-from xoxo.utils import BaseStationMap, movement_reader, seq2graph
+from xoxo.basestationmap import BaseStationMap
+from xoxo.personmovday import movement_reader
+from xoxo.utils import seq2graph
 from xoxo.settings import BSMAP, MOVEMENT_HIST, MAX_USER_NUM
 
 __author__ = 'Xiaming Chen'
@@ -167,7 +169,7 @@ if __name__ == '__main__':
     motifrepo = Motif()
     for person in movement_reader(movement, BaseStationMap(basemap)):
 
-        if IdCounter.count(person.user_id) > counter:
+        if IdCounter.count(person.id) > counter:
             break
 
         user_graph = seq2graph(person.locations, True)

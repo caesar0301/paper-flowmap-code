@@ -83,6 +83,7 @@ class MobilityNetwork(object):
             else:
                 self.coordmapr[rnode].extend(Hyperedge(coord))
 
+    @params(with_road_vertices=bool)
     def get_hyperedges(self, with_road_vertices=False):
         """ Get the hyperedges of mapped mobile network. We map each coordinates
         to the nearest road vertex and multiple coordinates mapped to the same vertex
@@ -123,6 +124,7 @@ class MobilityNetwork(object):
         road_target = self.coordmap[target]
         return nx.shortest_path_length(self.graph, road_source, road_target, weight='distance')
 
+    @params(k=int)
     @returns({Hyperedge: float})
     def betweenness_centrality(self, k=None):
         """ Calculate the betweenness centrality of each coordinates or hyperedge
@@ -134,6 +136,7 @@ class MobilityNetwork(object):
             mobile_bw[hedge] = road_bw[rnode]
         return mobile_bw
 
+    @params(k=int)
     @returns({(Hyperedge, Hyperedge): float})
     def edge_betweenness_centrality(self, k=None):
         """ Calculate the edge betweenness centrality of each pair of hyperedges
