@@ -18,6 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 from datetime import datetime
+import os
+import zipfile
+import fnmatch
+import random
+import string
 
 import shapefile
 import numpy as np
@@ -130,3 +135,58 @@ def shape2points(shpfile):
     """
     sf = shapefile.Reader(shpfile)
     return [shape.points[0] for shape in sf.shapes()]
+
+
+def randstr(len):
+    return ''.join(random.choice(string.lowercase) for i in range(len))
+
+
+def zipdir(path, zipf=None, fnpat='*'):
+    """
+    Parameters
+    ----------
+    path:
+        folder containing plain files to zip
+    zipf:
+        path to store zipped file
+    fnpat:
+        Unix shell-style wildcards supported by
+        `fnmatch.py <https://docs.python.org/2/library/fnmatch.html>`_
+    """
+    if zipf is None:
+        zipf = '/tmp/xoxo-' + randstr(10) + '.zip'
+    elif zipf[-4:] != '.zip':
+        zipf = zipf + ".zip"
+    ziph = zipfile.ZipFile(zipf, 'w')
+    try:
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                if fnmatch.fnmatch(file, fnpat):
+                    ziph.write(os.path.join(root, file))
+        return zipf
+    finally:
+        ziph.close()
+
+
+def zippylib(libpath, zipf=None):
+    """ A particular zip utility for python module.
+    """
+    if zipf is None:
+        zipf = '/tmp/xoxo-' + randstr(10) + '.zip'
+    elif zipf[-4:] != '.zip':
+        zipf = zipf + ".zip"
+    ziph = zipfile.PyZipFile(zipf, 'w')
+    try:
+        ziph.debug = 3
+        ziph.writepy(libpath)
+        return zipf
+    finally:
+        ziph.close()
+
+
+def normalized(a, axis=0, order=2):
+    """ Make a nomalization of matrix a along specific axis.
+    """
+    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
+    l2[l2==0] = 1
+    return a / l2

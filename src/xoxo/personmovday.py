@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from typedecorator import params
+from typedecorator import params, returns
 
 from roadnetwork import RoadNetwork
 from basestationmap import BaseStationMap
@@ -8,9 +8,10 @@ from settings import HZ_LB, HZ_RT
 from utils import greate_circle_distance, seq2graph, drange, in_area
 
 
-__all__ = ['movement_reader', 'PersonMoveDay']
+__all__ = ['movement_reader', 'movement_extractor', 'PersonMoveDay']
 
 
+@params(fname=str, bsmap=BaseStationMap)
 def movement_reader(fname, bsmap):
     """ An iterator to read personal daily data.
     """
@@ -60,6 +61,58 @@ def movement_reader(fname, bsmap):
 
     check_time_alignment()
     yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
+
+
+@returns(list)
+@params(records=list, bsmap=BaseStationMap)
+def movement_extractor(records, bsmap):
+    """ An iterator to read personal daily data.
+    """
+    assert isinstance(bsmap, BaseStationMap)
+
+    buf_ts = []
+    buf_lc = []
+    buf_cr = []
+    last_uid = None
+    last_day_start = None
+
+    def check_time_alignment():
+        if buf_ts[-1] != buf_ts[0] + 86400:
+            buf_ts.append(buf_ts[0] + 86400)
+            buf_lc.append(buf_lc[0])
+            buf_cr.append(buf_cr[0])
+
+    person_daily_movs = []
+    for uid, ts, loc in records:
+        uid = int(uid)
+        ts = int(float(ts))
+        loc = int(loc)
+        day_start, day_end = drange(ts)
+        coord = bsmap.get_coordinates(loc)
+
+        if not in_area(coord, HZ_LB, HZ_RT):
+            continue
+
+        if last_uid is None or uid == last_uid and day_start == last_day_start:
+            buf_ts.append(ts)
+            buf_lc.append(loc)
+            buf_cr.append(coord)
+        else:
+            check_time_alignment()
+            person_daily_movs.append(
+                PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr))
+
+            buf_ts = [ts]
+            buf_lc = [loc]
+            buf_cr = [coord]
+
+        last_uid = uid
+        last_day_start = day_start
+
+    check_time_alignment()
+    person_daily_movs.append(
+        PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr))
+    return person_daily_movs
 
 
 class PersonMoveDay(object):
