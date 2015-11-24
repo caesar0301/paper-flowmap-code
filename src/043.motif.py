@@ -13,7 +13,7 @@ from matplotlib.patches import FancyArrowPatch, Circle
 from xoxo.bsmap import BaseStationMap
 from xoxo.permov import movement_reader
 from xoxo.utils import seq2graph
-from xoxo.settings import BSMAP, MOVEMENT_HIST, MAX_USER_NUM
+from xoxo.settings import BSMAP, MOVEMENT_DAT, MAX_USER_NUM
 
 __author__ = 'Xiaming Chen'
 __email__ = 'chen@xiaming.me'
@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
     counter = MAX_USER_NUM
     basemap = BSMAP
-    movement = MOVEMENT_HIST
+    movement = MOVEMENT_DAT
 
     print("Extracting motifs ...")
     motifrepo = Motif()

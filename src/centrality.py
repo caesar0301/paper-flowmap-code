@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from xoxo.utils import BaseStationMap, RoadNetwork, MobilityNetwork
 from xoxo.utils import in_area, movement_reader
-from xoxo.settings import BSMAP, MOVEMENT_HIST, MAX_USER_NUM, HZ_SHAPEFILE, HZ_LB, HZ_RT
+from xoxo.settings import BSMAP, MOVEMENT_DAT, MAX_USER_NUM, HZ_ROADNET, HZ_LB, HZ_RT
 
 __author__ = 'chenxm'
 
@@ -22,7 +22,7 @@ class IdCounter(object):
         return len(IdCounter.ids)
 
 # Road network
-road_network = RoadNetwork(HZ_SHAPEFILE)
+road_network = RoadNetwork(HZ_ROADNET)
 
 # Construct mobile network
 bsmap = BaseStationMap(BSMAP)
@@ -39,7 +39,7 @@ bsmap = BaseStationMap(BSMAP)
 
 # Empirical centrality
 hedge_stat = {}
-for person in movement_reader(MOVEMENT_HIST, bsmap):
+for person in movement_reader(MOVEMENT_DAT, bsmap):
 
     if IdCounter.count(person.user_id) > MAX_USER_NUM:
         break
