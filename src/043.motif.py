@@ -10,8 +10,8 @@ from pandas import DataFrame
 from networkx.algorithms import isomorphism
 from matplotlib.patches import FancyArrowPatch, Circle
 
-from xoxo.basestationmap import BaseStationMap
-from xoxo.personmovday import movement_reader
+from xoxo.bsmap import BaseStationMap
+from xoxo.permov import movement_reader
 from xoxo.utils import seq2graph
 from xoxo.settings import BSMAP, MOVEMENT_HIST, MAX_USER_NUM
 

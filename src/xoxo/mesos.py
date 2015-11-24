@@ -2,7 +2,6 @@ import graphsim as gs
 from munkres import Munkres
 import networkx as nx
 import numpy as np
-from typedecorator import params
 
 
 __author__ = 'Xiaming'
@@ -14,14 +13,11 @@ class Mesos(object):
     def __init__(self, G1, G2, nattr='weight', eattr='weight', lamb = 0.5):
         G1, G2 = sorted([G1, G2], key=lambda x: len(x))
         csim = gs.tacsim_combined(G1, G2, node_attribute=nattr, edge_attribute=eattr, lamb=lamb)
-        print csim
         self.csim = csim / np.sqrt(((csim * csim).sum())) # to ensure valid structural distance
-        print self.csim
 
         m = Munkres()
         cdist = (1 - self.csim).tolist()
         self.matching = m.compute(cdist)
-        print self.matching
 
         nmap = {}
         def _gen_nnid(node):

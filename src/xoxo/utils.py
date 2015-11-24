@@ -27,7 +27,15 @@ import string
 import shapefile
 import numpy as np
 import networkx as nx
-from matplotlib.patches import FancyArrowPatch, Circle
+
+__all__ = ['drange', 'in_area', 'seq2graph', 'greate_circle_distance', 'shape2points',
+           'randstr', 'zipdir', 'zippylib']
+
+try:
+    from matplotlib.patches import FancyArrowPatch, Circle
+    __all__.append('draw_network')
+except:
+    print("Warnning: install `matplotlib` to use draw_network().")
 
 
 def drange(ts):
@@ -182,11 +190,3 @@ def zippylib(libpath, zipf=None):
         return zipf
     finally:
         ziph.close()
-
-
-def normalized(a, axis=0, order=2):
-    """ Make a nomalization of matrix a along specific axis.
-    """
-    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
-    l2[l2==0] = 1
-    return a / l2

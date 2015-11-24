@@ -1,8 +1,7 @@
-python-igraph==0.7
 matplotlib==1.4.3
 networx==1.10
-pyshp==1.2.3
+pyshp ==1.2.3
 typedecorator==0.0.4
 gdal==2.0.1
 munkres==1.0.7
-graphsim=0.2.3
+graphsim=0.2.5.3

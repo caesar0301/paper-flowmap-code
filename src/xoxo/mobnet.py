@@ -1,7 +1,7 @@
 import networkx as nx
 from typedecorator import params, returns
 
-from roadnetwork import RoadNetwork
+from roadnet import RoadNetwork
 
 
 class Hyperedge(object):

@@ -1,23 +1,19 @@
+import os
+
 DEBUGGING = False
 
-# Movement history
-MOVEMENT_HIST = 'data/hcl.dat'
+thisdir = os.path.dirname(__file__)
 
-# Base station map
-BSMAP = 'data/hcl_bm.dat'
+MOVEMENT_HIST = os.path.join(thisdir, '../../data/hcl.dat')
+BSMAP = os.path.join(thisdir, '../../data/hcl_bm.dat')
 
-# Max user number
+HZ_SHAPEFILE = os.path.join(thisdir, '../../map/hz/roads_clean.shp')
+HZ_MOBILE_SHAPEFILE = os.path.join(thisdir, '../../map/hz/mobilenetwork.shp')
+
+HZ_LB = [120.03013, 30.13614]
+HZ_RT = [120.28597, 30.35318]
+
 if DEBUGGING:
     MAX_USER_NUM = 1
 else:
     MAX_USER_NUM = 1000000000
-
-# Road shapefile of HZ
-HZ_SHAPEFILE = 'map/hz/roads_clean.shp'
-HZ_MOBILE_SHAPEFILE = 'map/hz/mobilenetwork.shp'
-
-# HZ_SHAPEFILE = 'map/hz2/roads_clean.shp'
-# HZ_MOBILE_SHAPEFILE = 'map/hz2/mobilenetwork.shp'
-
-HZ_LB = [120.03013, 30.13614]
-HZ_RT = [120.28597, 30.35318]
