@@ -17,25 +17,13 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-import sys
-
 
 class BaseStationMap(object):
     """ A singleton to store mobile network topology
     """
-    _instance = None
-    _mapDB = {}
 
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(BaseStationMap, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
-
-    def __init__(self, path=None):
-        if path:
-            self.load_database(path)
-
-    def load_database(self, path):
+    def __init__(self, path):
+        self._mapDB = {}
         for line in open(path, 'rb'):
             parts = line.strip('\r\n ').split(',')
             id = int(parts[0])
@@ -46,15 +34,15 @@ class BaseStationMap(object):
     def validate_database(self):
         if len(self._mapDB) == 0:
             print("ERROR: the map DB is not initialized, exiting")
-            sys.exit(1)
+            return False
+        return True
 
     def get_coordinates(self, locationid):
-        self.validate_database()
-        return self._mapDB[locationid]
+        return self._mapDB[locationid] if self.validate_database() else None
 
     def get_coordinates_from(self, locationids):
-        self.validate_database()
-        return [self._mapDB[i] for i in locationids]
+
+        return [self._mapDB[i] for i in locationids] if self.validate_database() else None
 
     def get_all_coordinates(self):
         return self._mapDB.values()

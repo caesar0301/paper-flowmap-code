@@ -85,7 +85,6 @@ def movement_extractor(records, bsmap):
             buf_cr.append(buf_cr[0])
         return True
 
-    person_daily_movs = []
     for uid, ts, loc in records:
         uid = int(uid)
         ts = int(float(ts))
@@ -102,8 +101,7 @@ def movement_extractor(records, bsmap):
             buf_cr.append(coord)
         else:
             if check_time_alignment():
-                person_daily_movs.append(PersonMoveDay(last_uid, last_day_start,
-                                                       buf_ts, buf_lc, buf_cr))
+                yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
 
             buf_ts = [ts]
             buf_lc = [loc]
@@ -113,9 +111,7 @@ def movement_extractor(records, bsmap):
         last_day_start = day_start
 
     if check_time_alignment():
-        person_daily_movs.append(PersonMoveDay(last_uid, last_day_start,
-                                                buf_ts, buf_lc, buf_cr))
-    return person_daily_movs
+        yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
 
 
 class PersonMoveDay(object):
