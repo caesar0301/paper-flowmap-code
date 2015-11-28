@@ -69,61 +69,45 @@ library(mixtools)
 
 dt7d <- read.table('data/hcl_mesos7d_dtloc_log', skip=1, head=F, sep=',')
 colnames(dt7d) = c('uid', seq(1,49))
+breaks <- sfsmisc::lseq(0.01,100,50)
 
-freq2raw <- function(v) {
-  # convert frequency to raw sequence
-  dat <- data.frame(V1=1:length(v), V2=v)
+freq2raw <- function(v, breaks) {
+  # convert frequency to raw sequence, given a set of breaks
+  mids <- (breaks[1:length(breaks)-1] + breaks[2:length(breaks)]) * 0.5
+  dat <- data.frame(V1=mids, V2=v)
   dat2 <- unlist(apply(dat, 1, function(x) rep(x[1], x[2])))
   as.numeric(dat2)
 }
 
-freq2dens <- function(v){
-  # convert frequency to density using hist
-  dat <- data.frame(V1=1:length(v), V2=v)
-  dat2 <- unlist(apply(dat, 1, function(x) rep(x[1], x[2])))
-  dens <- hist(dat2, breaks = 1:length(v), plot = FALSE)
-  dens$density
+get_mixmodel_params <- function(user) {
+  # Mixmodel fitted with original data
+  v = as.numeric(user[2:50])
+  r <- freq2raw(v, breaks)
+  pars <- normalmixEM(r, k=2)
+  res <- list()
+  res$mu <- pars$mu
+  res$sigma <- pars$sigma
+  res$lambda <- pars$lambda
+  res
 }
-
-## Save user's model parameters
-A <- apply(dt7d[1:10000], 1, function(user) {
-  res <- tryCatch({
-    v <- as.numeric(user[2:50])
-    r <- freq2raw(v)
-    pars.ml <- normalmixEM(r, k=2)
-    params <- list()
-    params$mu <- pars.ml$mu
-    params$sigma <- pars.ml$sigma
-    params$lambda <- pars.ml$lambda
-    as.numeric(unlist(params)) },
-    error = function(e) {
-      rep(-1, 6) }
-  )
-  c(user[1], res)
-})
-
-write.table(t(A), 'data/hcl_mesos7d_dtloc_log_model', sep=',', row.names=F, col.names=F)
 
 # Plot individual's dwelling time
 plot_user_dwelling_time <- function(user) {  
   v = as.numeric(user[2:50])
-  r <- freq2raw(v)
-  breaks <- sfsmisc::lseq(0.01,100,50)
-  
+  nat_breaks = c(0.5, 1:length(v) + 0.5) # mids: 1...49
+  r <- freq2raw(v, nat_breaks)
+  # fit model on natural axis
   pars.ml <- normalmixEM(r, k=2)
   mu <- pars.ml$mu
   sigma <- pars.ml$sigma
   lambda <- pars.ml$lambda
   
-  print(mu)
-  print(sigma)
-  print(lambda)
-  
   n <- length(r)
   z <- rbinom(n, 1, lambda[1])
   sim.mix <- z*rnorm(n, mu[1], sigma[1]) + (1-z)*rnorm(n, mu[2], sigma[2])
   
-  w <- freq2dens(v)
+  w <- hist(r, breaks=nat_breaks, plot=FALSE)
+  w <- w$density
   w[w==0] <- 0.0001
   
   barplot(w, axes=FALSE, col=colors()[140])
@@ -138,13 +122,27 @@ plot_user_dwelling_time <- function(user) {
   Axis(side=1, at=atseq[at], labels=labels, lty=NULL, tick=F)
 }
 
-svg("figures/dwtime_mesos7d_u243.svg", width=5, height=3)
+svg("figures/dwtime_mesos7d_u68795.svg", width=5, height=3)
 par(mar=c(3.5, 3.5, 1, 1))
 par(lwd = 0.7)
 plot_user_dwelling_time(dt7d[dt7d$uid==68795,])
-
+print(get_mixmodel_params(user))
 dev.off()
 
+
+###############################################
+## Save user's model parameters
+A <- apply(dt7d[1:100,], 1, function(user) {
+  res <- tryCatch({
+    params <- get_mixmodel_params(user)
+    as.numeric(unlist(params)) },
+    error = function(e) {
+      rep(-1, 6) }
+  )
+  c(user[1], res)
+})
+
+write.table(t(A), 'data/hcl_mesos7d_dtloc_log_model', sep=',', row.names=F, col.names=F)
 
 ################################################
 #  Individual model parameter space
@@ -155,7 +153,7 @@ library(fields)
 library(scatterplot3d)
 
 # Plot DT model WITHOUT location information
-models <- read.csv('data/hcl_mesos7d_dt_log_model_1000_clean', sep=',', head=T)
+models <- read.csv('data/hcl_mesos7d_dt_log_model_clean', sep=',', head=T)
 head(models)
 dens2d <- kde2d(models$mu1, models$mu2)
 x <- dens2d$x
