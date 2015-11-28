@@ -53,7 +53,7 @@ def drange(ts):
     return (sds, eds)
 
 
-def in_area(p, lb, rt):
+def in_area(p, lb = [120.03013, 30.13614], rt = [120.28597, 30.35318]):
     """Check if a point (lon, lat) is in an area denoted by
     the left-below and right-top points.
     """
@@ -138,6 +138,15 @@ def greate_circle_distance(lon0, lat0, lon1, lat1):
         np.cos(lat0) * np.cos(lat1) * np.cos(dlon)
     c = np.arctan2(y, x)
     return EARTH_R * c
+
+
+def radius_of_gyration(coordinates):
+    """ Calculate the radius of gyration given a list of [(lons, lats)]
+    """
+    clon = np.average([coord[0] for coord in coordinates])
+    clat = np.average([coord[1] for coord in coordinates])
+
+    return np.average([greate_circle_distance(clon, clat, coord[0], coord[1]) for coord in coordinates])
 
 
 def shape2points(shpfile):

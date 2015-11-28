@@ -4,8 +4,8 @@ DEBUGGING = False
 
 thisdir = os.path.dirname(__file__)
 
-MOVEMENT_DAT = os.path.join(thisdir, '../../data/hcl.dat')
-BSMAP = os.path.join(thisdir, '../../data/hcl_bm.dat')
+MOVEMENT_DAT = os.path.join(thisdir, '../../data/hcl_mesos0822.dat')
+BSMAP = os.path.join(thisdir, '../../data/hcl_mesos0822_bm.dat')
 HZ_ROADNET = os.path.join(thisdir, '../../map/hz/roads_clean.shp')
 HZ_MOBNET = os.path.join(thisdir, '../../map/hz/mobilenetwork.shp')
 

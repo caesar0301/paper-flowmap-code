@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import numpy as np
 from typedecorator import params, returns
 
 from roadnet import RoadNetwork
@@ -8,64 +9,10 @@ from settings import HZ_LB, HZ_RT
 from utils import greate_circle_distance, seq2graph, drange, in_area
 
 
-__all__ = ['movement_reader', 'movement_extractor', 'PersonMoveDay']
+__all__ = ['movement_reader', 'PersonMoveDay']
 
 
-@params(fname=str, bsmap=BaseStationMap)
-def movement_reader(fname, bsmap):
-    """ An iterator to read personal daily data.
-    """
-    assert isinstance(bsmap, BaseStationMap)
-
-    buf_ts = []
-    buf_lc = []
-    buf_cr = []
-    last_uid = None
-    last_day_start = None
-
-    def check_time_alignment():
-        if buf_ts[-1] != buf_ts[0] + 86400:
-            buf_ts.append(buf_ts[0] + 86400)
-            buf_lc.append(buf_lc[0])
-            buf_cr.append(buf_cr[0])
-
-    for line in open(fname, 'rb'):
-        line = line.strip('\r\n ')
-
-        if line.startswith('#'): continue
-
-        uid, ts, loc = line.split(',')[0:3]
-        uid = int(uid)
-        ts = int(float(ts))
-        loc = int(loc)
-        day_start, day_end = drange(ts)
-        coord = bsmap.get_coordinates(loc)
-
-        if not in_area(coord, HZ_LB, HZ_RT):
-            continue
-
-        if last_uid is None or uid == last_uid and day_start == last_day_start:
-            buf_ts.append(ts)
-            buf_lc.append(loc)
-            buf_cr.append(coord)
-        else:
-            check_time_alignment()
-            yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
-
-            buf_ts = [ts]
-            buf_lc = [loc]
-            buf_cr = [coord]
-
-        last_uid = uid
-        last_day_start = day_start
-
-    check_time_alignment()
-    yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
-
-
-@returns(list)
-@params(records=list, bsmap=BaseStationMap)
-def movement_extractor(records, bsmap):
+def movement_reader(ifile, bsmap):
     """ An iterator to read personal daily data.
     """
     assert isinstance(bsmap, BaseStationMap)
@@ -85,7 +32,15 @@ def movement_extractor(records, bsmap):
             buf_cr.append(buf_cr[0])
         return True
 
-    for uid, ts, loc in records:
+    for line in ifile:
+        if isinstance(line, str):
+            if line.startswith('#'):
+                continue
+            line = line.strip('\r\n ')
+            uid, ts, loc = line.split(',')[0:3]
+        elif isinstance(line, tuple):
+            uid, ts, loc = line
+
         uid = int(uid)
         ts = int(float(ts))
         loc = int(loc)
@@ -114,6 +69,17 @@ def movement_extractor(records, bsmap):
         yield PersonMoveDay(last_uid, last_day_start, buf_ts, buf_lc, buf_cr)
 
 
+def transtime(a, b):
+    dist = greate_circle_distance(a[0], a[1], b[0], b[1])
+    if dist <= 5: # km
+        speed = 5
+    elif dist <= 15:
+        speed = 20
+    else:
+        speed = 30
+    return 1.0 * dist / speed * 3600
+
+
 class PersonMoveDay(object):
     """ An object to represent the daily mobility of individuals.
 
@@ -130,7 +96,7 @@ class PersonMoveDay(object):
         self.id = user_id
         self.dtstart = dtstart
         self.dwelling = []
-        self.accdwelling = {}
+        self.accdwelling = {}   # accumulative dwelling time in secs
 
         # Remove duplicate records
         nodup = []
@@ -140,20 +106,10 @@ class PersonMoveDay(object):
                 nodup.append(i)
             last_location = locations[i]
 
-        self.timestamps = [timestamps[i] for i in nodup]
-        self.locations = [locations[i] for i in nodup]
+        self.timestamps = [timestamps[i] for i in nodup]    # timestamp sequence
+        self.locations = [locations[i] for i in nodup]      # location sequence
+        self.coordinates = [coordinates[i] for i in nodup]  # coordinate sequence
         self.circles = self._mine_circles(self.locations)
-        self.coordinates = [coordinates[i] for i in nodup]
-
-        def transtime(a, b):
-            dist = greate_circle_distance(a[0], a[1], b[0], b[1])
-            if dist <= 5: # km
-                speed = 5
-            elif dist <= 15:
-                speed = 20
-            else:
-                speed = 30
-            return 1.0 * dist / speed * 3600
 
         # Calculate raw dwelling time
         last_timestamp = None
@@ -182,6 +138,19 @@ class PersonMoveDay(object):
                 self.accdwelling[coord] = 0
             self.accdwelling[coord] += self.dwelling[i]
 
+        # Transition frequency
+        self.freq = {}
+        last_coord = None
+        for coord in coordinates:
+            if last_coord is None or coord == last_coord:
+                last_coord = coord
+                continue
+            if (last_coord, coord) not in self.freq:
+                self.freq[(last_coord, coord)] = 1
+            else:
+                self.freq[(last_coord, coord)] += 1
+            last_coord = coord
+
     def __str__(self):
         return 'User %d: %s %d %s' % (
             self.id,
@@ -189,6 +158,12 @@ class PersonMoveDay(object):
             len(self.circles),
             self.locations
         )
+
+    def is_strict_valid(self):
+        pass
+
+    def which_day(self):
+        return self.dtstart.strftime("%m%d")
 
     @params(self=object, locs=[object])
     def _mine_circles(self, locs):
@@ -220,7 +195,7 @@ class PersonMoveDay(object):
 
     @params(self=object, road_network=RoadNetwork, directed=bool,
             edge_weighted_by_distance=bool, node_weighted_by_dwelling=bool)
-    def convert2graph(self, road_network, directed=True,
+    def convert2graph(self, road_network=None, directed=True,
                       edge_weighted_by_distance=True,
                       node_weighted_by_dwelling=True):
         """ Return a graph representation of human mobility, one which
@@ -232,11 +207,28 @@ class PersonMoveDay(object):
 
         if edge_weighted_by_distance:
             for edge in graph.edges_iter():
-                graph.edge[edge[0]][edge[1]]['distance'] = \
-                    road_network.shortest_path_distance(edge[0], edge[1])
+                if road_network:
+                    dist = road_network.shortest_path_distance(edge[0], edge[1])
+                else:
+                    dist = greate_circle_distance(edge[0][0], edge[0][1], edge[1][0], edge[1][1])
+
+                graph.edge[edge[0]][edge[1]]['distance'] = dist
+                if edge in self.freq:
+                    graph.edge[edge[0]][edge[1]]['frequency'] = self.freq[edge]
+                else:
+                    graph.edge[edge[0]][edge[1]]['frequency'] = 1
 
         if node_weighted_by_dwelling:
             for node in graph.nodes_iter():
                 graph.node[node]['dwelling'] = self.accdwelling.get(node)
 
         return graph
+
+    def radius_of_gyration(self):
+        """ R_g based on edge distances
+        """
+        clon = np.average([coord[0] for coord in self.coordinates])
+        clat = np.average([coord[1] for coord in self.coordinates])
+
+        return np.average([greate_circle_distance(clon, clat, coord[0], coord[1]) for coord in self.coordinates])
+

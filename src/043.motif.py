@@ -167,7 +167,7 @@ if __name__ == '__main__':
 
     print("Extracting motifs ...")
     motifrepo = Motif()
-    for person in movement_reader(movement, BaseStationMap(basemap)):
+    for person in movement_reader(open(movement, 'rb'), BaseStationMap(basemap)):
 
         if IdCounter.count(person.id) > counter:
             break
