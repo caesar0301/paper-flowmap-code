@@ -14,6 +14,8 @@ class Mesos(object):
         G1, G2 = sorted([G1, G2], key=lambda x: len(x))
         csim = gs.tacsim_combined(G1, G2, node_attribute=nattr, edge_attribute=eattr, lamb=lamb)
         self.csim = csim / np.sqrt(((csim * csim).sum())) # to ensure valid structural distance
+        self.g1 = G1
+        self.g2 = G2
 
         m = Munkres()
         cdist = (1 - self.csim).tolist()

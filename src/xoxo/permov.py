@@ -156,8 +156,10 @@ class PersonMoveDay(object):
             self.id,
             self.dtstart.strftime('%Y%m%d'),
             len(self.circles),
-            self.locations
-        )
+            self.locations )
+
+    def __len__(self):
+        return len(self.locations)
 
     def is_strict_valid(self):
         pass
@@ -212,7 +214,7 @@ class PersonMoveDay(object):
                 else:
                     dist = greate_circle_distance(edge[0][0], edge[0][1], edge[1][0], edge[1][1])
 
-                graph.edge[edge[0]][edge[1]]['distance'] = dist
+                graph.edge[edge[0]][edge[1]]['weight'] = dist
                 if edge in self.freq:
                     graph.edge[edge[0]][edge[1]]['frequency'] = self.freq[edge]
                 else:
@@ -220,7 +222,7 @@ class PersonMoveDay(object):
 
         if node_weighted_by_dwelling:
             for node in graph.nodes_iter():
-                graph.node[node]['dwelling'] = self.accdwelling.get(node)
+                graph.node[node]['weight'] = self.accdwelling.get(node)
 
         return graph
 
@@ -232,3 +234,17 @@ class PersonMoveDay(object):
 
         return np.average([greate_circle_distance(clon, clat, coord[0], coord[1]) for coord in self.coordinates])
 
+    def travel_dist(self):
+        """ Calculate the travelling distance totally.
+        """
+        if len(self.coordinates) < 2:
+            return 0
+        total = 0
+        for i in range(0, len(self.coordinates)-1):
+            lon1, lat1 = self.coordinates[i]
+            lon2, lat2 = self.coordinates[i+1]
+            total += greate_circle_distance(lon1, lat1, lon2, lat2)
+        return total
+
+    def distinct_loc_num(self):
+        return len(set(self.locations))

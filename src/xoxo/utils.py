@@ -27,7 +27,7 @@ import string
 import shapefile
 import numpy as np
 import networkx as nx
-from typedecorator import params, returns
+import matplotlib.pyplot as plt
 
 
 __all__ = ['drange', 'in_area', 'seq2graph', 'greate_circle_distance', 'shape2points',
@@ -96,6 +96,11 @@ def draw_network(G, pos, ax):
     plt.title('Curved network')
 
     """
+    # ax=plt.gca()
+    # pos=nx.spring_layout(motif)
+    # draw_network(motif, pos, ax)
+
+
     for n in G:
         c = Circle(pos[n], radius=0.05, alpha=0.5)
         ax.add_patch(c)
@@ -117,6 +122,11 @@ def draw_network(G, pos, ax):
                             lw=2, alpha=alpha, color=color)
         seen[(u, v)] = rad
         ax.add_patch(e)
+
+    # ax.autoscale()
+    # plt.axis('equal')
+    # plt.axis('off')
+
     return e
 
 
@@ -203,7 +213,13 @@ def zippylib(libpath, zipf=None):
         ziph.close()
 
 
-def dumps_mobgraph(G, node_attribute='weight', edge_attribute='weight'):
+def normalized(a, axis=None, order=2):
+    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
+    l2[l2==0] = 1
+    return a / l2
+
+
+def dumps_mobgraph(G, node_attribute='weight', edge_attribute='weight', norm=True):
     """ Save a mobility graph to string
     """
     assert isinstance(G, nx.DiGraph)
@@ -216,8 +232,15 @@ def dumps_mobgraph(G, node_attribute='weight', edge_attribute='weight'):
         nw.append((node, G.node[node][node_attribute]))
     for es, et in G.edges():
         ew.append((node_index[es], node_index[et], G[es][et][edge_attribute]))
-    nodestr = ';'.join(['%s,%s' % (str(n[0]), str(n[1])) for n in nw])
-    edgestr = ';'.join(['%d,%d,%s' % (e[0], e[1], str(e[2])) for e in ew])
+
+    if norm:
+        nwsum = np.sum([i[1] for i in nw])
+        nw = [(i[0], i[1]/nwsum) for i in nw]
+        ewsum = np.sum([i[2] for i in ew])
+        ew = [(i[0], i[1], i[2]/ewsum) for i in ew]
+
+    nodestr = ';'.join(['%s,%.3f' % (str(n[0]), float(n[1])) for n in nw])
+    edgestr = ';'.join(['%d,%d,%.3f' % (e[0], e[1], float(e[2])) for e in ew])
     return '%s|%s' % (nodestr, edgestr)
 
 

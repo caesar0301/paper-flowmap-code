@@ -175,6 +175,26 @@ def loc_dt_all(movdata, bsmap, output):
     ofile.close()
 
 
+def mobgraph_degree(movdata, bsmap, output):
+    """ Node degree of mobility graphs
+    """
+    nloc = []
+    ndgr = []
+    bsmap = BaseStationMap(bsmap)
+
+    for person in movement_reader(open(movdata, 'rb'), bsmap):
+        if person.distinct_loc_num() < 2:
+            continue
+
+        graph = person.convert2graph()
+        ndgr.append(np.mean(graph.degree().values()))
+        nloc.append(person.distinct_loc_num())
+
+    ofile = open(output, 'wb')
+    ofile.write('nloc,ndgr\n')
+    ofile.write('\n'.join( ['%d,%.3f' % (x,y) for x, y in zip(nloc, ndgr)]))
+
+
 def main():
     if len(sys.argv) < 4:
         print >> sys.stderr, "Usage: mesos <movdata> <bsmap> <output>"
@@ -189,6 +209,7 @@ def main():
     # accu_dt(movdata, bsmap, output)
     # loc_dt(movdata, bsmap, output)
     # loc_dw_all(movdata, bsmap, output)
+    mobgraph_degree(movdata, bsmap, output)
 
 
 if __name__ == '__main__':

@@ -53,6 +53,7 @@ plot_hist_fit(hist22, pch=6, cex=1.2, col=cols[1],
               xlab="Dwelling Time (Hours)", ylab="PDF")
 
 # Weekend (inset figure)
+library(TeachingDemos)
 subplot( 
   plot_hist_fit(hist25, pch=0, cex=0.7, col=cols[2], 
                 xlim=c(0.9, 18), ylim=c(10^-3, 1), lwd=1, xlab="", ylab=""), 
@@ -81,6 +82,7 @@ freq2raw <- function(v, breaks) {
 
 get_mixmodel_params <- function(user) {
   # Mixmodel fitted with original data
+  # Note: the input data are on log scale
   v = as.numeric(user[2:50])
   r <- freq2raw(v, breaks)
   pars <- normalmixEM(r, k=2)
@@ -120,12 +122,36 @@ plot_user_dwelling_time <- function(user) {
   at <- seq(min(atseq), max(atseq), by=ceiling(length(at10)/length(unique(at10))))
   labels <-sapply(at10[at],function(i) as.expression(bquote(10^ .(i))))
   Axis(side=1, at=atseq[at], labels=labels, lty=NULL, tick=F)
+  
+  legend("topright", "Fitted model", lty=1, col="#CC0033", lwd=2, inset=.02)
+  
+  # Add model params expressions
+  params <- get_mixmodel_params(user)
+  exp_mu <- substitute(paste(mu[1], ',', mu[2], '=', mu1, ',', mu2, sep=''),
+                       list(mu1=signif(params$mu[1], digits=3),
+                            mu2=signif(params$mu[2], digits=3)))
+  exp_sigma <- substitute(paste(sigma[1], ',', sigma[2], '=', sigma1, ',', sigma2, sep=''),
+                       list(sigma1=signif(params$sigma[1], digits=3),
+                            sigma2=signif(params$sigma[2], digits=3)))
+  exp_lambda <- substitute(paste(lambda, '=', L, sep=''),
+                           list(L=signif(params$lambda[1], digits=3)))
+  
+  # For u243
+  text(40,0.1,exp_sigma)
+  text(40,0.08,exp_mu)
+  text(40,0.06,exp_lambda)
+  
+  # For u68795
+#   text(40,0.06,exp_sigma)
+#   text(40,0.05,exp_mu)
+#   text(40,0.04,exp_lambda)
 }
 
-svg("figures/dwtime_mesos7d_u68795.svg", width=5, height=3)
+pdf("figures/dwtime_mesos7d_u243.pdf", width=4, height=4)
 par(mar=c(3.5, 3.5, 1, 1))
 par(lwd = 0.7)
-plot_user_dwelling_time(dt7d[dt7d$uid==68795,])
+user <- dt7d[dt7d$uid==243,]
+plot_user_dwelling_time(user)
 print(get_mixmodel_params(user))
 dev.off()
 
@@ -152,69 +178,95 @@ library(MASS)
 library(fields)
 library(scatterplot3d)
 
-# Plot DT model WITHOUT location information
-models <- read.csv('data/hcl_mesos7d_dt_log_model_clean', sep=',', head=T)
-head(models)
-dens2d <- kde2d(models$mu1, models$mu2)
-x <- dens2d$x
-y <- dens2d$y
-z <- dens2d$z
-# 2D
-pdf('figures/hcl_mesos7d_dt_log_model_mu_2d.pdf', height=4, width=6)
-par(mar=c(3, 3, 1, 1), mgp=c(1.5,0.5,0))
-filled.contour(x,y,z,color=terrain.colors, xlab="Mu1 (H)", ylab="Mu2 (H)")
-dev.off()
-# 3D
-pdf('figures/hcl_mesos7d_dt_log_model_mu_3d.pdf', height=6, width=8)
-persp(x,y,z,col="lightblue", nticks=6,theta=60, phi=10,
-      xlab="Mu1 (H)", ylab="Mu2 (H)", zlab="Probability")
-dev.off()
+lab_mu1 <- expression(paste(mu[1], " (hr)"))
+lab_mu2 <- expression(paste(mu[2], " (hr)"))
+lab_sigma1 <- expression(paste(sigma[1], " (hr)"))
+lab_sigma2 <- expression(paste(sigma[2], " (hr)"))
 
-dens2d <- kde2d(models$gamma1, models$gamma2)
-x <- dens2d$x
-y <- dens2d$y
-z <- dens2d$z
-# 2D
-pdf('figures/hcl_mesos7d_dt_log_model_gamma_2d.pdf', height=4, width=6)
-par(mar=c(3, 3, 1, 1), mgp=c(1.5,0.5,0))
-filled.contour(x,y,z,color=terrain.colors, xlab="Gamma1 (H)", ylab="Gamma2 (H)")
-dev.off()
-# 3D
-pdf('figures/hcl_mesos7d_dt_log_model_gamma_3d.pdf', height=6, width=8)
-persp(x,y,z,col="lightblue", nticks=6,theta=145, phi=10,
-      xlab="Gamma1 (H)", ylab="Gamma2 (H)", zlab="Probability")
-dev.off()
+# Plot DT model WITH/WITHOUT location information
+
+## MU
+for (exp in c('dt', 'dtloc')) {
+  ifile <- paste('data/hcl_mesos7d_', exp, '_log_model_clean', sep='')
+  ofile2d <- paste('figures/hcl_mesos7d_', exp, '_log_model_mu_2d.pdf', sep='')
+  ofile3d <- paste('figures/hcl_mesos7d_', exp, '_log_model_mu_3d.pdf', sep='')
+  print(ifile)
+
+  models <- read.csv(ifile, sep=',', head=T)
+  head(models)
+  dens2d <- kde2d(log10(models$mu1), log10(models$mu2)) # On log-log scales
+  x <- dens2d$x
+  y <- dens2d$y
+  z <- dens2d$z
+  
+  # add log ticks and labs
+  xtick <- pretty(x)
+  ytick <- pretty(y)
+  xlab <- sapply(pretty(x),function(i) as.expression(bquote(10^ .(i))))
+  ylab <- sapply(pretty(y),function(i) as.expression(bquote(10^ .(i))))
+  
+  if (exp == 'dt') {
+    ylim = c(0.4, max(y))
+    xlim = range(x, finite=T) 
+  } else {
+    ylim = c(-0.5, max(y))
+    xlim = range(x, finite=T) 
+  }
+
+  # 2D
+  pdf(ofile2d, height=3.5, width=4.5)
+  par(mar=c(3, 3.5, 1, 1), mgp=c(2,0.5,0))
+  filled.contour(x,y,z,color=terrain.colors, xlab=lab_mu1, ylab=lab_mu2, xlim=xlim, ylim=ylim,
+                 plot.axes = { axis(1, at=xtick, label=xlab);
+                               axis(2, at=ytick, label=xlab) })
+  dev.off()
+
+  # 3D
+  pdf(ofile3d, height=6, width=8)
+  persp(x,y,z,col="lightblue", nticks=6,theta=60, phi=10,
+        xlab="Mu1", ylab="Mu2", zlab="Probability")
+  dev.off()
+}
 
 
-# Plot DT model WITH location information
-models <- read.csv('data/hcl_mesos7d_dtloc_log_model_clean', sep=',', head=T)
-head(models)
-dens2d <- kde2d(models$mu1, models$mu2)
-x <- dens2d$x
-y <- dens2d$y
-z <- dens2d$z
-# 2D
-pdf('figures/hcl_mesos7d_dtloc_log_model_mu_2d.pdf', height=4, width=6)
-par(mar=c(3, 3, 1, 1), mgp=c(1.5,0.5,0))
-filled.contour(x,y,z,color=terrain.colors, xlab="Mu1 (H)", ylab="Mu2 (H)")
-dev.off()
-# 3D
-pdf('figures/hcl_mesos7d_dtloc_log_model_mu_3d.pdf', height=6, width=8)
-persp(x,y,z,col="lightblue", nticks=6,theta=60, phi=10,
-      xlab="Mu1 (H)", ylab="Mu2 (H)", zlab="Probability")
-dev.off()
+## SIGMA
+for (exp in c('dt', 'dtloc')) {
+  ifile <- paste('data/hcl_mesos7d_', exp, '_log_model_clean', sep='')
+  ofile2d <- paste('figures/hcl_mesos7d_', exp, '_log_model_sigma_2d.pdf', sep='')
+  ofile3d <- paste('figures/hcl_mesos7d_', exp, '_log_model_sigma_3d.pdf', sep='')
+  print(ifile)
+  
+  models <- read.csv(ifile, sep=',', head=T)
+  head(models)
+  dens2d <- kde2d(log(models$sigma1), log(models$sigma2)) # On log-log scales
+  x <- dens2d$x
+  y <- dens2d$y
+  z <- dens2d$z
+  
+  # add log ticks and labs
+  xtick <- pretty(x)
+  ytick <- pretty(y)
+  xlab <- sapply(pretty(x),function(i) as.expression(bquote(10^ .(i))))
+  ylab <- sapply(pretty(y),function(i) as.expression(bquote(10^ .(i))))
 
-dens2d <- kde2d(models$gamma1, models$gamma2)
-x <- dens2d$x
-y <- dens2d$y
-z <- dens2d$z
-# 2D
-pdf('figures/hcl_mesos7d_dtloc_log_model_gamma_2d.pdf', height=4, width=6)
-par(mar=c(3, 3, 1, 1), mgp=c(1.5,0.5,0))
-filled.contour(x,y,z,color=terrain.colors, xlab="Gamma1 (H)", ylab="Gamma2 (H)")
-dev.off()
-# 3D
-pdf('figures/hcl_mesos7d_dtloc_log_model_gamma_3d.pdf', height=6, width=8)
-persp(x,y,z,col="lightblue", nticks=6,theta=145, phi=10,
-      xlab="Gamma1 (H)", ylab="Gamma2 (H)", zlab="Probability")
-dev.off()
+  if (exp == 'dt') {
+    ylim = c(-1, max(y))
+    xlim = range(x, finite=T) 
+  } else {
+    ylim = c(-1, max(y))
+    xlim = range(x, finite=T) 
+  }
+  
+  # 2D
+  pdf(ofile2d, height=3.5, width=4.5)
+  par(mar=c(3, 3.5, 1, 1), mgp=c(2,0.5,0), cex=1.5)
+  filled.contour(x,y,z,color=terrain.colors, xlab=lab_sigma1, ylab=lab_sigma2, xlim=xlim, ylim=ylim,
+                 plot.axes = { axis(1, at=xtick, label=xlab);
+                               axis(2, at=ytick, label=xlab) } )
+  dev.off()
+  # 3D
+  pdf(ofile3d, height=6, width=8)
+  persp(x,y,z,col="lightblue", nticks=6,theta=35, phi=10,
+        xlab="Sigma1", ylab='Sigma2', zlab="Probability")
+  dev.off()
+}
