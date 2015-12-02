@@ -10,7 +10,6 @@ from networkx.drawing.nx_pylab import draw_networkx
 from xoxo.bsmap import BaseStationMap
 from xoxo.permov import movement_reader
 from xoxo.mesos import Mesos
-from xoxo.motif import Motif
 from networkx.algorithms import isomorphism
 from xoxo.utils import dumps_mobgraph, loads_mobgraph, draw_network
 
@@ -21,14 +20,14 @@ __email__ = 'chen@xiaming.me'
 def top_compare():
     """ Compare top motif and mesostructure
     """
-    datapath = 'data/mesos0825_s0dot2'
-    movdata = 'data/hcl_mesos0825_sample0.2'
-    bsmap = 'data/hcl_mesos0825_bm'
-    ofname = os.path.join(datapath, 'mesos0825_s0dot2_stat')
+    datapath = 'data/mesos0822_s0dot2'
+    movdata = 'data/hcl_mesos0822_sample0.2'
+    bsmap = 'data/hcl_mesos0822_bm'
+    ofname = os.path.join(datapath, 'mesos0822_s0dot2_top')
 
     mobgraphs = {}
     for person in movement_reader(open(movdata), BaseStationMap(bsmap)):
-        if person.which_day() != '0825':
+        if person.which_day() != '0822':
             continue
 
         nn = len(set(person.locations))
@@ -39,15 +38,14 @@ def top_compare():
 
         mobgraphs[nn][person.id] = person.convert2graph()
 
-
     new_file = True
-    for C in range(2, 16):
+    for C in range(3, 16):
         for kn in range(1, 5):
 
             print C, kn
 
             # Read dist matrix for (group, cluster) users
-            fileklab = os.path.join(datapath, 'mesos0825_s0dot2_c%d_kn%d' % (C, kn))
+            fileklab = os.path.join(datapath, 'mesos0822_s0dot2_c%d_kn%d' % (C, kn))
             distmat = []
             i = 0
             for line in open(fileklab):
@@ -191,8 +189,7 @@ def draw_top_compare():
     """ Plot results of top_compare
     """
 
-    ifname = 'data/mesos0825_s0dot2/mesos0825_s0dot2_stat'
-
+    ifname = 'data/mesos0822_s0dot2/mesos0822_s0dot2_stat'
 
     res = []
     for line in open(ifname):
@@ -202,7 +199,6 @@ def draw_top_compare():
         motif = loads_mobgraph(motif)
         res.append((int(group), int(kn), float(mesos_sim), float(motif_supp), mesos, motif))
 
-
     ncol = 5
     nrow = np.ceil(1.0 * len(res) / ncol)
 
@@ -211,19 +207,13 @@ def draw_top_compare():
         motif = res[i][5]
         supp = res[i][3]
         plt.subplot(nrow, ncol, i+1)
-        # ax=plt.gca()
-        # pos=nx.spring_layout(motif)
-        # draw_network(motif, pos, ax)
-        # ax.autoscale()
-        # plt.axis('equal')
-        # plt.axis('off')
         draw_networkx(motif)
         plt.title('%.1f%%, nn=%d' % (supp * 100, motif.number_of_nodes()))
 
-    plt.savefig('figures/mesos0825_s0.2_top_motif.pdf')
+    plt.savefig('figures/mesos0822_s0.2_top_motif.pdf')
 
 
 
 
 if __name__ == '__main__':
-    trv_distance()
+    top_compare()
