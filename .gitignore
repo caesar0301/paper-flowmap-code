@@ -1,3 +1,6 @@
+data/hcl.dat
+data/hcl_bm.dat
+
 *.DS_Store
 *.pyc
 .RData
