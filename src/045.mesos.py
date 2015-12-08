@@ -53,7 +53,7 @@ def loads_mesos(S):
     return loads_mobgraph(S)
 
 
-def mobility_graphs(logiter, bsmap, roadnet, cmin=3, cmax=15, dates=None):
+def mobility_graphs(logiter, bsmap, roadnet, cmin=2, cmax=15, dates=None):
     """ Extract mobility graphs from a list of movement observations
     """
     results = []

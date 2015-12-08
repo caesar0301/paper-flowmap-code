@@ -235,9 +235,9 @@ def dumps_mobgraph(G, node_attribute='weight', edge_attribute='weight', norm=Tru
 
     if norm:
         nwsum = np.sum([i[1] for i in nw])
-        nw = [(i[0], i[1]/nwsum) for i in nw]
+        nw = [(i[0], 1.0 * i[1] / nwsum) for i in nw]
         ewsum = np.sum([i[2] for i in ew])
-        ew = [(i[0], i[1], i[2]/ewsum) for i in ew]
+        ew = [(i[0], i[1], 1.0 * i[2] / ewsum) for i in ew]
 
     nodestr = ';'.join(['%s,%.3f' % (str(n[0]), float(n[1])) for n in nw])
     edgestr = ';'.join(['%d,%d,%.3f' % (e[0], e[1], float(e[2])) for e in ew])
