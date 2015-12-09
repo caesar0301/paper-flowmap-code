@@ -3,11 +3,11 @@ library(dplyr)
 library(igraph)
 library(movr)
 
-# trips <- read.csv("../data/tts_trips.dat", head=T, sep=",")
-# trips <- trips[complete.cases(trips), ]
-# fm <- trips %>% group_by(DAYNO) %>%
-#   do(with(., flowmap2(uid, locno, as.numeric(stime), as.numeric(etime), gap=6*3600))) %>%
-# saveRDS(fm, "rdata/tts_fm.rds")
+trips <- read.csv("../data/tts_trips.dat", head=T, sep=",")
+trips <- trips[complete.cases(trips), ]
+fm <- trips %>% group_by(DAYNO) %>%
+  do(with(., flowmap2(uid, locno, as.numeric(stime), as.numeric(etime), gap=6*3600))) %>%
+saveRDS(fm, "data/tts_fm.rds")
 
 # draw flowmap based on communities
 flowmap.community <- function(flowmap) {
@@ -28,6 +28,6 @@ flowmap.community <- function(flowmap) {
        edge.arrow.mode="--", edge.width=log(fm.2$unique))
 }
 
-fm <- readRDS("rdata/tts_fm.rds") %>% dplyr::filter(total>2 & from != to) %>%
+fm <- readRDS("data/tts_fm.rds") %>% dplyr::filter(total>2 & from != to) %>%
   mutate(from = as.numeric(from), to = as.numeric(to))
 flowmap.community(fm[fm$DAYNO==2, ])

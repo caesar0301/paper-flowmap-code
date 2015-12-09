@@ -14,7 +14,7 @@ colnames(fm.d) = c("interval", "from", "to", "unique", "total")
 fm.d$interval = as.POSIXct(fm.d$interval * 3600 * 6, origin="1970-01-01 00:00:00", tz="GMT")
 fm.d <- fm.d[fm.d$interval==as.POSIXct("2013-01-10 12:00:00", tz="GMT"), ]
 
-fm.t <- readRDS("rdata/tts_fm.rds") %>% dplyr::filter(from != to) %>%
+fm.t <- readRDS("data/tts_fm.rds") %>% dplyr::filter(from != to) %>%
   mutate(from = as.numeric(from), to = as.numeric(to))
 fm.t <- fm.t[fm.t$DAYNO == 2, ]
 
