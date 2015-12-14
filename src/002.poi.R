@@ -12,13 +12,13 @@ regions <- list(
   rural = c(120.16678,30.300872,120.200125,30.336536))
 
 # read data
-poi <- read.csv("data/poi_hz.txt", encoding="UTF-8", sep="\t", header=FALSE,
+poi <- read.csv("data/hz_poi.txt", encoding="UTF-8", sep="\t", header=FALSE,
                   stringsAsFactors=FALSE)
 colnames(poi) <- c("category", "lon", "lat", "name")
 poi$category <- factor(poi$category)
 
 # filter area
-poi.m <- poi %>% filter(in_area(lon, lat, regions$metro))
+poi.m <- poi %>% dplyr::filter(in_area(lon, lat, regions$metro))
 
 # Order categories by count
 cats <- sort(unique(poi.m$category))
@@ -27,7 +27,7 @@ cats <- sort(unique(poi.m$category))
 saveGIF({
   i = 0
   for ( cat in cats ){
-    poi.c <- filter(poi.m, category == cat)
+    poi.c <- dplyr::filter(poi.m, category == cat)
     if ( i == 0){
       gg <- ggplot(poi.c, aes(lon, lat, group=category, color=category)) + 
         theme_bw() + geom_point() +

@@ -7,7 +7,7 @@ trips <- read.csv("../data/tts_trips.dat", head=T, sep=",")
 trips <- trips[complete.cases(trips), ]
 fm <- trips %>% group_by(DAYNO) %>%
   do(with(., flowmap2(uid, locno, as.numeric(stime), as.numeric(etime), gap=6*3600))) %>%
-saveRDS(fm, "data/tts_fm.rds")
+  saveRDS(fm, "data/tts_fm.rds")
 
 # draw flowmap based on communities
 flowmap.community <- function(flowmap) {

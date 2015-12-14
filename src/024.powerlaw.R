@@ -9,10 +9,9 @@ colnames(fm.h) = c("interval", "from", "to", "unique", "total")
 fm.h$interval = as.POSIXct(fm.h$interval * 3600 * 6, origin="1970-01-01 00:00:00", tz="Asia/Shanghai")
 fm.h <- fm.h[fm.h$interval==as.POSIXct("2012-08-19 14:00:00", tz="Asia/Shanghai"), ]
 
-fm.d <- read.csv("data/fm_dsp01_i6h_m5.dat", sep=',', header=F, stringsAsFactors=F)
+fm.d <- read.csv("data/scl_fine_p06_fm_i24h", sep=',', header=F, stringsAsFactors=F)
 colnames(fm.d) = c("interval", "from", "to", "unique", "total")
-fm.d$interval = as.POSIXct(fm.d$interval * 3600 * 6, origin="1970-01-01 00:00:00", tz="GMT")
-fm.d <- fm.d[fm.d$interval==as.POSIXct("2013-01-10 12:00:00", tz="GMT"), ]
+fm.d$interval = as.POSIXct(fm.d$interval * 3600 * 24, origin="1970-01-01 00:00:00", tz="GMT")
 
 fm.t <- readRDS("data/tts_fm.rds") %>% dplyr::filter(from != to) %>%
   mutate(from = as.numeric(from), to = as.numeric(to))

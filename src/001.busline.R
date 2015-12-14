@@ -1,4 +1,7 @@
-# Explore the public transport network with bus lines.
+# Plot the public transport network with bus lines.
+#
+# Xiaming
+##
 library(dplyr)
 library(ggplot2)
 library(movr)
@@ -9,7 +12,7 @@ regions <- list(
   rural = c(120.16678,30.300872,120.200125,30.336536))
 
 # Read public bus network data
-ifile <- file("data/busnet_baidu_hz.txt", 'rb')
+ifile <- file("data/hz_busnet.txt", 'rb')
 linn <- readLines(ifile)
 busnet <- list()
 linename <- ""
@@ -30,10 +33,9 @@ busnet <- do.call(rbind, lapply(names(busnet), function(name){
   df
 }))
 colnames(busnet) <- c("lon", "lat", "bus")
-saveRDS(busnet, 'rdata/busnet_baidu_hz.rds')
 
 # Filter regional data
-busnet <- filter(busnet, in_area(lon, lat, regions$metro))
+busnet <- dplyr::filter(busnet, in_area(lon, lat, regions$metro))
 
 # Plot bus network
 ggplot(busnet, aes(lon, lat, group=bus, col=bus)) + theme_bw() +
