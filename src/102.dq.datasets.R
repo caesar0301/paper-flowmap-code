@@ -1,6 +1,7 @@
 library(movr)
 library(data.table)
 
+
 senegal.mov <- "data/scl_fine_p06"
 senegal.bs <- "data/senegal_site_lonlat.csv"
 hangzhou.mov <- "data/hcl_mesos0822"
