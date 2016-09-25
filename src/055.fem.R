@@ -11,7 +11,7 @@ colnames(mom) <- c('uid', 'rg', 'totloc', 'totdist', 'trvdist')
 rwm <- read.csv('data/mesos_model_rwm_stat', sep='\t', head=F)
 colnames(rwm) <- c('uid', 'rg', 'totloc', 'totdist', 'trvdist')
 
-fem <- read.csv('data/mesos_model_emp_stat2', sep='\t', head=F)
+fem <- read.csv('data/mesos_model_fem', sep='\t', head=F)
 colnames(fem) <- c('uid', 'rg', 'totloc', 'totdist', 'trvdist')
 
 ###############
